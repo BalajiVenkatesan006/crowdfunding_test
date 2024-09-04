@@ -36,3 +36,53 @@
     transform: rotate(360deg);
   }
 }
+
+/* Add global styles that match the Oraclase theme */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f7f7f7;
+}
+
+a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+p {
+  margin: 5px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .App-logo {
+    height: 80px;
+  }
+
+  .footer {
+    font-size: 0.8em;
+  }
+
+  .kickstarterButton {
+    font-size: 0.9em;
+    padding: 10px 20px;
+  }
+
+  .dropzoneAndImageContainer {
+    flex-direction: column;
+  }
+
+  .dropzone {
+    max-width: 300px;
+  }
+
+  .image {
+    max-width: 90%;
+    max-height: 300px;
+  }
+}
