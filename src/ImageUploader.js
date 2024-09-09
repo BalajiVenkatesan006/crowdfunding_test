@@ -1,18 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dropzone from 'react-dropzone';
-import heic2any from 'heic2any';
-import JSZip from 'jszip';
 import axios from 'axios';
+import heic2any from 'heic2any';
 import { PulseLoader } from 'react-spinners';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import { Box, Typography, IconButton, Button, Fade } from '@mui/material';
+import { FaChevronLeft, FaChevronRight, FaTimes, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
+import { Box, Typography, IconButton, Button, Modal, Fade, Paper } from '@mui/material';
 
 const ImageUploader = () => {
-    const [images, setImages] = useState([]);
+    const [currentImage, setCurrentImage] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isButtonDisabled, setIsButtonDisabled] = useState(true);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [file, setFile] = useState(null);
+    const [zoomLevel, setZoomLevel] = useState(1);
+
+    useEffect(() => {
+        const handlePageRefresh = () => {
+            localStorage.removeItem('thumbnails');
+            localStorage.removeItem('currentImage');
+            for (let i = 0; i < 4; i++) {
+                localStorage.removeItem(`image_${i}`);
+            }
+        };
+
+        window.addEventListener('beforeunload', handlePageRefresh);
+
+        return () => {
+            window.removeEventListener('beforeunload', handlePageRefresh);
+        };
+    }, []);
+
+    const clearLocalStorage = () => {
+        localStorage.removeItem('thumbnails');
+        localStorage.removeItem('currentImage');
+        for (let i = 0; i < 4; i++) {
+            localStorage.removeItem(`image_${i}`);
+        }
+    };
 
     const validateFile = (file) => {
         return new Promise((resolve) => {
@@ -24,7 +50,7 @@ const ImageUploader = () => {
                 return;
             }
 
-            if (file.size < 256 * 1024 || file.size > 35 * 1024 * 1024) {
+            if (file.size < 64 * 1024 || file.size > 35 * 1024 * 1024) {
                 resolve("File size must be between 256 KB and 35 MB.");
                 return;
             }
@@ -132,39 +158,71 @@ const ImageUploader = () => {
         });
     };
 
-    const uploadImage = async (file) => {
+    const fetchInitialImages = async (file) => {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await axios.post('http://localhost:8000/api/gamut/thumbnails_and_first_image/', formData, {
+                responseType: 'json',
+            });
+
+            const { thumbnails, first_image } = response.data;
+
+            const formattedThumbnails = thumbnails.map(thumbnail => `data:image/png;base64,${thumbnail}`);
+            const formattedFirstImage = `data:image/png;base64,${first_image}`;
+
+            // Set the current image immediately after fetching
+            setCurrentImage(formattedFirstImage);
+            setIsButtonDisabled(false);
+
+            // Save the thumbnails and first image in localStorage
+            localStorage.setItem('thumbnails', JSON.stringify(formattedThumbnails));
+            localStorage.setItem('currentImage', formattedFirstImage);
+
+        } catch (error) {
+            console.error('Error fetching images:', error);
+            setError('Failed to fetch images.');
+        }
+    };
+
+    const fetchFullImage = async (index, file) => {
+        const cachedImage = localStorage.getItem(`image_${index}`);
+        if (cachedImage) {
+            setCurrentImage(cachedImage);
+            setCurrentIndex(index);
+            setZoomLevel(1);
+            return;
+        }
+
         setLoading(true);
         const formData = new FormData();
         formData.append('image', file);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/gamut/image/', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-                responseType: 'arraybuffer', // Expecting a binary response (zip file)
+            const response = await axios.post(`http://localhost:8000/api/gamut/image/${index + 1}/`, formData, {
+                responseType: 'arraybuffer',
             });
 
-            // Extract images from the zip file
-            const zip = new JSZip();
-            const unzipped = await zip.loadAsync(response.data);
-            const imageFiles = Object.values(unzipped.files).map((file) => file.async('blob'));
-            const imageUrls = await Promise.all(imageFiles).then((blobs) =>
-                blobs.map((blob) => URL.createObjectURL(blob))
-            );
-
-            setImages(imageUrls);
-            setIsButtonDisabled(false);
+            const blob = new Blob([response.data], { type: 'image/png' });
+            const imageUrl = URL.createObjectURL(blob);
+            setCurrentImage(imageUrl);
+            setCurrentIndex(index);
+            setZoomLevel(1); // Reset zoom level on image change
             setLoading(false);
+
+            localStorage.setItem(`image_${index}`, imageUrl);
+            localStorage.setItem('currentImage', imageUrl);
         } catch (error) {
-            console.error('Error uploading image:', error);
-            setError('Failed to upload and process image.');
+            console.error('Error fetching full image:', error);
+            setError('Failed to fetch full image.');
             setLoading(false);
         }
     };
 
     const onDrop = async (acceptedFiles) => {
-        setError(null); // Clear any existing errors
+        clearLocalStorage(); // Clear the local storage before processing a new image
+        setError(null);
         let file = acceptedFiles[0];
         try {
             if (file.type === 'image/heic' || file.name.endsWith('.HEIC')) {
@@ -185,8 +243,8 @@ const ImageUploader = () => {
                 throw new Error(validationError);
             }
             const resizedFile = await validateAndResizeImage(file);
-
-            await uploadImage(resizedFile);
+            setFile(resizedFile);
+            await fetchInitialImages(resizedFile);
             setError(null);
             setIsButtonDisabled(false);
         } catch (error) {
@@ -195,16 +253,35 @@ const ImageUploader = () => {
         }
     };
 
-    const handleKickstarterRedirect = () => {
-        window.location.href = 'https://www.kickstarter.com/?lang=de';
-    };
-
     const handleNextImage = () => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+        const newIndex = (currentIndex + 1) % JSON.parse(localStorage.getItem('thumbnails')).length;
+        fetchFullImage(newIndex, file);
     };
 
     const handlePreviousImage = () => {
-        setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
+        const newIndex = (currentIndex - 1 + JSON.parse(localStorage.getItem('thumbnails')).length) % JSON.parse(localStorage.getItem('thumbnails')).length;
+        fetchFullImage(newIndex, file);
+    };
+
+    const handleImageClick = () => {
+        setIsFullscreen(true);
+    };
+
+    const handleCloseFullscreen = () => {
+        setIsFullscreen(false);
+    };
+
+    const handleZoomIn = () => {
+        setZoomLevel(prevZoom => Math.min(prevZoom + 0.2, 3)); // Max zoom level 3x
+    };
+
+    const handleZoomOut = () => {
+        setZoomLevel(prevZoom => Math.max(prevZoom - 0.2, 1)); // Min zoom level 1x
+    };
+
+    const handleOrderClick = () => {
+        clearLocalStorage();
+        window.location.href = 'https://www.kickstarter.com/?lang=de';
     };
 
     const getCaption = () => {
@@ -225,50 +302,65 @@ const ImageUploader = () => {
                     )}
                 </Dropzone>
 
-                {images.length > 0 && !loading && (
+                {error && <Typography color="error" sx={styles.error}>{error}</Typography>}
+
+                {localStorage.getItem('thumbnails') && (
                     <Fade in={!loading} timeout={1000}>
-                        <Box sx={styles.imageContainer}>
-                            <Box
-                                sx={styles.imageWrapper}
-                                onMouseEnter={() => {
-                                    document.getElementById('navLeft').style.visibility = 'visible';
-                                    document.getElementById('navRight').style.visibility = 'visible';
-                                }}
-                                onMouseLeave={() => {
-                                    document.getElementById('navLeft').style.visibility = 'hidden';
-                                    document.getElementById('navRight').style.visibility = 'hidden';
-                                }}
-                            >
-                                <IconButton
-                                    id="navLeft"
-                                    onClick={handlePreviousImage}
-                                    sx={{ ...styles.navigationIcon, left: '10px', visibility: 'hidden' }}
+                        <Box sx={styles.imageAndThumbnailsContainer}>
+                            <Box sx={styles.imageContainer}>
+                                <Box
+                                    sx={styles.imageWrapper}
+                                    onMouseEnter={() => {
+                                        document.getElementById('navLeft').style.visibility = 'visible';
+                                        document.getElementById('navRight').style.visibility = 'visible';
+                                    }}
+                                    onMouseLeave={() => {
+                                        document.getElementById('navLeft').style.visibility = 'hidden';
+                                        document.getElementById('navRight').style.visibility = 'hidden';
+                                    }}
                                 >
-                                    <FaChevronLeft />
-                                </IconButton>
-                                <img src={images[currentIndex]} alt="Processed" style={styles.image} />
-                                <IconButton
-                                    id="navRight"
-                                    onClick={handleNextImage}
-                                    sx={{ ...styles.navigationIcon, right: '10px', visibility: 'hidden' }}
-                                >
-                                    <FaChevronRight />
-                                </IconButton>
-                                <Typography variant="caption" sx={styles.caption}>
-                                    {getCaption()}
-                                </Typography>
+                                    {loading && (
+                                        <Box sx={styles.loadingOverlay}>
+                                            <PulseLoader color="#FF8C00" size={15} margin={2} />
+                                        </Box>
+                                    )}
+                                    <IconButton
+                                        id="navLeft"
+                                        onClick={handlePreviousImage}
+                                        sx={{ ...styles.navigationIcon, left: '10px', visibility: 'hidden' }}
+                                    >
+                                        <FaChevronLeft />
+                                    </IconButton>
+                                    <img src={currentImage} alt="Processed" style={styles.image} onClick={handleImageClick} />
+                                    <IconButton
+                                        id="navRight"
+                                        onClick={handleNextImage}
+                                        sx={{ ...styles.navigationIcon, right: '10px', visibility: 'hidden' }}
+                                    >
+                                        <FaChevronRight />
+                                    </IconButton>
+                                </Box>
                             </Box>
+
+                            <Box sx={styles.captionContainer}>
+                                <Paper elevation={3} sx={styles.captionBox}>
+                                    <Typography variant="subtitle1" sx={styles.caption}>
+                                        {getCaption()}
+                                    </Typography>
+                                </Paper>
+                            </Box>
+
                             <Box sx={styles.thumbnailContainer}>
-                                {images.map((img, index) => (
+                                {JSON.parse(localStorage.getItem('thumbnails')).map((thumbnail, index) => (
                                     <img
                                         key={index}
-                                        src={img}
+                                        src={thumbnail}
                                         alt={`Thumbnail ${index + 1}`}
                                         style={{
                                             ...styles.thumbnail,
                                             borderColor: currentIndex === index ? '#007bff' : '#ccc',
                                         }}
-                                        onClick={() => setCurrentIndex(index)}
+                                        onClick={() => fetchFullImage(index, file)}
                                     />
                                 ))}
                             </Box>
@@ -277,14 +369,36 @@ const ImageUploader = () => {
                 )}
             </Box>
 
-            {error && <Typography color="error" sx={styles.error}>{error}</Typography>}
-            {loading && (
-                <Box sx={styles.loaderContainer}>
-                    <PulseLoader color="#FF8C00" size={15} margin={2} />
-                    <Typography variant="body2" sx={styles.loadingText}>
-                        Processing your image...
-                    </Typography>
-                </Box>
+            {isFullscreen && (
+                <Modal open={isFullscreen} onClose={handleCloseFullscreen}>
+                    <Box sx={styles.fullscreenContainer}>
+                        <Box sx={styles.fullscreenControls}>
+                            <IconButton
+                                onClick={handleCloseFullscreen}
+                                sx={{ color: 'white' }}
+                            >
+                                <FaTimes />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleZoomIn}
+                                sx={{ color: 'white' }}
+                            >
+                                <FaSearchPlus />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleZoomOut}
+                                sx={{ color: 'white' }}
+                            >
+                                <FaSearchMinus />
+                            </IconButton>
+                        </Box>
+                        <img
+                            src={currentImage}
+                            alt="Fullscreen"
+                            style={{ ...styles.fullscreenImage, transform: `scale(${zoomLevel})` }}
+                        />
+                    </Box>
+                </Modal>
             )}
 
             <Button
@@ -294,7 +408,7 @@ const ImageUploader = () => {
                     opacity: isButtonDisabled ? 0.5 : 1,
                     cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
                 }}
-                onClick={handleKickstarterRedirect}
+                onClick={handleOrderClick}
                 disabled={isButtonDisabled}
             >
                 Order on Kickstarter
@@ -306,27 +420,27 @@ const ImageUploader = () => {
 const styles = {
     container: {
         display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
         width: '100%',
-        height: '100%',
-        padding: '20px',
+        padding: '10px 20px', // Reduced padding for tighter layout
+        overflowY: 'auto',
         boxSizing: 'border-box',
-        gap: '20px',
     },
     dropzoneAndImageContainer: {
         display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        justifyContent: 'space-between',
+        flexDirection: 'column',
+        justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
-        maxWidth: '900px',
         gap: '20px',
+        flexGrow: 1,
+        paddingTop: '10px', // Reduce gap between header and the drag-and-drop zone
     },
     dropzone: {
-        flex: 1,
-        height: '150px',
+        width: '100%',
+        maxWidth: '600px',
+        height: '80px', // Reduced height
         borderWidth: '2px',
         borderColor: '#ccc',
         borderStyle: 'dashed',
@@ -335,7 +449,7 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '20px',
+        padding: '10px',
         backgroundColor: '#fff',
         boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
         transition: 'all 0.3s ease-in-out',
@@ -344,10 +458,22 @@ const styles = {
         fontSize: '1.1em',
         color: '#888',
     },
-    imageContainer: {
-        flex: 2,
+    error: {
+        color: 'red',
+        marginTop: '10px', // Ensure error message is closer to the dropzone
+        textAlign: 'center',
+    },
+    imageAndThumbnailsContainer: {
         display: 'flex',
-        flexDirection: 'row',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        maxWidth: '800px',
+    },
+    imageContainer: {
+        width: '100%',
+        display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#f0f0f0',
@@ -355,23 +481,20 @@ const styles = {
         borderRadius: '10px',
         overflow: 'hidden',
         position: 'relative',
-        padding: '20px',
+        padding: '0px', // No padding to avoid extra space around the image
+        height: '300px',
     },
     imageWrapper: {
         position: 'relative',
         width: '100%',
         height: '100%',
-        transition: 'transform 0.3s ease-in-out',
-        '&:hover': {
-            transform: 'scale(1.05)',
-        },
     },
     image: {
-        width: 'auto',
+        width: '100%', // Make the image take the full width of the container
         height: '100%',
-        maxHeight: '100%',
-        maxWidth: '100%',
         objectFit: 'contain',
+        cursor: 'pointer',
+        transition: 'transform 0.3s ease-in-out',
     },
     navigationIcon: {
         position: 'absolute',
@@ -381,85 +504,91 @@ const styles = {
         color: '#FF8C00',
         zIndex: 1,
     },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
+    },
+    captionContainer: {
+        width: '100%',
+        padding: '10px',
+    },
+    captionBox: {
+        padding: '10px',
+        backgroundColor: '#fff',
+        borderRadius: '10px',
+        textAlign: 'center',
+        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
+    },
+    caption: {
+        color: '#007bff',
+        fontWeight: 'bold',
+    },
     thumbnailContainer: {
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: { xs: 'row', md: 'row' },
         justifyContent: 'center',
-        marginLeft: '10px',
+        gap: '10px',
+        marginTop: '10px',
+        width: '100%',
+        maxWidth: '800px',
+        overflowX: 'auto', // Horizontal scroll for thumbnails on mobile
     },
     thumbnail: {
         width: '60px',
         height: '60px',
         objectFit: 'contain',
-        margin: '5px 0',
         cursor: 'pointer',
         borderRadius: '5px',
         border: '2px solid #ccc',
     },
-    caption: {
-        marginTop: '10px',
-        textAlign: 'center',
-        fontSize: '1em',
-        color: '#007bff',
-        fontWeight: 'bold',
-        backgroundColor: '#fff',
-        borderRadius: '5px',
-        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.1)',
-        padding: '10px',
-    },
-    error: {
-        color: 'red',
-        marginTop: '20px',
-    },
-    loaderContainer: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        marginTop: '30px',
-    },
-    loadingText: {
-        marginTop: '10px',
-        fontSize: '1em',
-        color: '#666',
-    },
     kickstarterButton: {
+        width: '100%',
+        maxWidth: '600px',
         padding: '15px 30px',
         fontSize: '1.1em',
         color: '#fff',
         backgroundColor: '#FF8C00',
         borderRadius: '25px',
         boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.2)',
+        marginTop: '20px',
+        marginBottom: '20px', // Add padding below the button for spacing before the footer
     },
-
-    '@media (max-width: 768px)': {
-        dropzoneAndImageContainer: {
-            flexDirection: 'column',
-        },
-        imageContainer: {
-            width: '100%',
-        },
-        image: {
-            maxHeight: '300px',
-        },
-        kickstarterButton: {
-            padding: '10px 20px',
-            fontSize: '0.9em',
-        },
+    fullscreenContainer: {
+        position: 'fixed',
+        top: '10vh',
+        bottom: '10vh',
+        left: '0',
+        right: '0',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        zIndex: 1300,
+        padding: '20px',
     },
-    '@media (max-width: 480px)': {
-        dropzoneAndImageContainer: {
-            flexDirection: 'column',
-        },
-        imageContainer: {
-            width: '100%',
-        },
-        image: {
-            maxHeight: '300px',
-        },
-        kickstarterButton: {
-            padding: '8px 16px',
-            fontSize: '0.8em',
-        },
+    fullscreenImage: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+        transition: 'transform 0.3s ease-in-out',
+    },
+    fullscreenControls: {
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '10px',
+        zIndex: 2,
     },
 };
 

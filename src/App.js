@@ -2,32 +2,20 @@ import React, { useState } from 'react';
 import ImageUploader from './ImageUploader';
 import oraclaseLogo from './oraclase_logo_black_bg.png';
 import { FaInstagram, FaLinkedin, FaYoutube, FaTiktok } from 'react-icons/fa';
-import {
-    Container,
-    Box,
-    Typography,
-    Button,
-    IconButton,
-    Modal,
-    Link,
-} from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, Container, Link } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 const theme = createTheme({
     palette: {
         primary: {
-            main: '#0d47a1', // Dark Blue
+            main: '#0d47a1',
         },
         secondary: {
-            main: '#d32f2f', // Red
+            main: '#d32f2f',
         },
         background: {
             default: '#f7f7f7',
-            paper: '#ffffff',
         },
-        button: {
-            main: '#FF8C00', // Orange for the Kickstarter button
-        }
     },
     typography: {
         fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
@@ -60,8 +48,7 @@ const App = () => {
                                 Consent Required
                             </Typography>
                             <Typography sx={{ mt: 2 }}>
-                                By using this service, you agree that we may store your uploaded image on our server.
-                                Please read our <Link href="/privacy-policy">Privacy Policy</Link> for more details.
+                            I agree that the images I upload may be stored and processed by Oraclase in accordance with Art. 6 para. 1 lit. a of the Datenschutz-Grundverordnung (DSGVO) for the creation of personalized products and their preview. I certify that I own the rights to the uploaded images and that no rights of third parties are infringed by their use. I am informed that I can revoke my consent in accordance with Art. 7 para. 3 DSGVO at any time with effect for the future.
                             </Typography>
                             <Button
                                 variant="contained"
@@ -79,16 +66,16 @@ const App = () => {
                         <Box sx={styles.header}>
                             <img src={oraclaseLogo} alt="Oraclase Logo" style={styles.logo} />
                             <Box sx={styles.socialIcons}>
-                                <IconButton component="a" href="https://www.instagram.com" target="_blank">
+                                <IconButton component="a" href="https://www.instagram.com/oraclase.ai/" target="_blank">
                                     <FaInstagram size={24} style={{ color: 'white' }} />
                                 </IconButton>
-                                <IconButton component="a" href="https://www.linkedin.com" target="_blank">
+                                <IconButton component="a" href="https://www.linkedin.com/company/oraclase/" target="_blank">
                                     <FaLinkedin size={24} style={{ color: 'white' }} />
                                 </IconButton>
-                                <IconButton component="a" href="https://www.youtube.com" target="_blank">
+                                <IconButton component="a" href="https://www.youtube.com/@Oraclase" target="_blank">
                                     <FaYoutube size={24} style={{ color: 'white' }} />
                                 </IconButton>
-                                <IconButton component="a" href="https://www.tiktok.com" target="_blank">
+                                <IconButton component="a" href="https://www.tiktok.com/@oraclase.ai" target="_blank">
                                     <FaTiktok size={24} style={{ color: 'white' }} />
                                 </IconButton>
                             </Box>
@@ -143,7 +130,7 @@ const styles = {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingTop: '8vh',
+        paddingTop: '10vh',
         paddingBottom: '8vh',
         marginTop: '8vh',
         backgroundColor: theme.palette.background.default,
