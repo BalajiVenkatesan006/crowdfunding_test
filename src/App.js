@@ -4,6 +4,7 @@ import oraclaseLogo from './oraclase_logo_black_bg.png';
 import { FaInstagram, FaLinkedin, FaYoutube, FaTiktok } from 'react-icons/fa';
 import { Box, Typography, IconButton, Modal, Button, Container, Link } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';  // Import from @mui/material
 
 const theme = createTheme({
     palette: {
@@ -72,13 +73,22 @@ const App = () => {
         setIsConsentModalOpen(false);
     };
 
+    // Define a media query for responsiveness
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     return (
         <ThemeProvider theme={theme}>
             <Box sx={styles.appContainer}>
                 {/* Modal for consent if needed */}
                 {store === 'yes' && isConsentModalOpen && (
                     <Modal open={isConsentModalOpen}>
-                        <Box sx={styles.modalContent}>
+                        <Box
+                            sx={{
+                                ...styles.modalContent,
+                                width: isMobile ? '90%' : '500px', // Adjust modal width based on screen size
+                                padding: isMobile ? '20px' : '40px', // Adjust padding based on screen size
+                            }}
+                        >
                             <Typography variant="h6" component="h2">
                                 Consent Required
                             </Typography>
@@ -113,7 +123,7 @@ const App = () => {
                 )}
 
                 {/* Main Content */}
-                {localStorage.getItem('userConsent')!=null && (
+                {localStorage.getItem('userConsent') != null && (
                     <>
                         <Box sx={styles.header}>
                             <img src={oraclaseLogo} alt="Oraclase Logo" style={styles.logo} />
@@ -192,12 +202,13 @@ const styles = {
         color: 'white',
         padding: '20px',
         textAlign: 'center',
-        height: '8vh',
+        height: '10vh',
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 1000,
+        // Ensure that there's enough space below on smaller screens
     },
     modalContent: {
         position: 'absolute',
