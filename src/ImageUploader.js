@@ -286,6 +286,18 @@ const ImageUploader = () => {
     };
 
     const getCaption = () => {
+        if (currentIndex +1 === 1){
+            return 'Jute Background';
+        }
+        if( currentIndex+1 === 2){
+            return 'Lamp Background';
+        }
+        if( currentIndex+1 === 3){
+            return 'Stone Background';
+        }
+        if( currentIndex+1 === 4){
+            return 'Beetle Effect';
+        }
         return `Image ${currentIndex + 1}`;
     };
 
