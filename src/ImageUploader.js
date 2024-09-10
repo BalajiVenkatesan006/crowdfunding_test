@@ -161,6 +161,7 @@ const ImageUploader = () => {
     const fetchInitialImages = async (file) => {
         const formData = new FormData();
         formData.append('image', file);
+        formData.append("store", localStorage.getItem('userConsent') ? localStorage.getItem('userConsent') : "false");
 
         try {
             const response = await axios.post('http://localhost:8000/api/gamut/thumbnails_and_first_image/', formData, {

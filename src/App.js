@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
 import oraclaseLogo from './oraclase_logo_black_bg.png';
 import { FaInstagram, FaLinkedin, FaYoutube, FaTiktok } from 'react-icons/fa';
@@ -32,36 +32,82 @@ const theme = createTheme({
 });
 
 const App = () => {
-    const [isConsentGiven, setIsConsentGiven] = useState(false);
+    const [isConsentGiven, setIsConsentGiven] = useState(null);
+    const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+
+    // Fetch the store variable from environment variables
+    const store = process.env.REACT_APP_STORE;
+
+    useEffect(() => {
+        // If store === 'yes', show the consent modal, otherwise load the content without showing consent
+        console.log("The storage variable");
+        console.log(store);
+        console.log(process.env.REACT_APP_STORE);
+        if (store === 'yes') {
+            const consent = localStorage.getItem('userConsent');
+            if (consent === null) {
+                setIsConsentModalOpen(true);
+            } else {
+                setIsConsentGiven(true); // Consent already given
+            }
+        } else {
+            setIsConsentGiven(true); // No consent required if store === 'no'
+        }
+    }, [store]);
 
     const handleConsent = () => {
+        localStorage.setItem('userConsent', true);
         setIsConsentGiven(true);
+        setIsConsentModalOpen(false);
+    };
+
+    const handleDisagree = () => {
+        localStorage.setItem('userConsent', false);
+        setIsConsentModalOpen(false);
     };
 
     return (
         <ThemeProvider theme={theme}>
             <Box sx={styles.appContainer}>
-                {!isConsentGiven && (
-                    <Modal open={!isConsentGiven}>
+                {/* Modal for consent if needed */}
+                {store === 'yes' && isConsentModalOpen && (
+                    <Modal open={isConsentModalOpen}>
                         <Box sx={styles.modalContent}>
                             <Typography variant="h6" component="h2">
                                 Consent Required
                             </Typography>
-                            <Typography sx={{ mt: 2 }}>
-                            I agree that the images I upload may be stored and processed by Oraclase in accordance with Art. 6 para. 1 lit. a of the Datenschutz-Grundverordnung (DSGVO) for the creation of personalized products and their preview. I certify that I own the rights to the uploaded images and that no rights of third parties are infringed by their use. I am informed that I can revoke my consent in accordance with Art. 7 para. 3 DSGVO at any time with effect for the future.
+                            <Typography sx={styles.consentText}>
+                                We require your consent to process and store the images you upload. 
+                                By agreeing, you acknowledge that the images will be used for personalized product creation, 
+                                stored securely, and processed in accordance with GDPR Article 6(1)(a). 
+                                <br /><br />
+                                You certify that you own the rights to the uploaded images and that no third-party rights are infringed.
+                                You can revoke your consent at any time, with future effect, as per GDPR Article 7(3).
                             </Typography>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={handleConsent}
-                                sx={styles.consentButton}
-                            >
-                                I Agree
-                            </Button>
+                            <Box sx={styles.consentButtonGroup}>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleConsent}
+                                    sx={styles.consentButton}
+                                >
+                                    I Agree
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={handleDisagree}
+                                    sx={styles.consentButton}
+                                >
+                                    Disagree
+                                </Button>
+                            </Box>
                         </Box>
                     </Modal>
                 )}
-                {isConsentGiven && (
+
+                {/* Main Content */}
+                {localStorage.getItem('userConsent')!=null && (
                     <>
                         <Box sx={styles.header}>
                             <img src={oraclaseLogo} alt="Oraclase Logo" style={styles.logo} />
@@ -130,9 +176,9 @@ const styles = {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingTop: '10vh',
-        paddingBottom: '8vh',
-        marginTop: '8vh',
+        paddingTop: '5vh',
+        paddingBottom: '18vh',
+        marginTop: '5vh',
         backgroundColor: theme.palette.background.default,
     },
     footer: {
@@ -160,11 +206,21 @@ const styles = {
         maxWidth: '500px',
         width: '100%',
     },
-    consentButton: {
+    consentText: {
         marginTop: '20px',
+        textAlign: 'justify',
+        lineHeight: '1.5',
+    },
+    consentButtonGroup: {
+        marginTop: '30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+    },
+    consentButton: {
         padding: '10px 20px',
         fontSize: '1.1em',
         borderRadius: '25px',
+        width: '45%',
     },
 };
 
