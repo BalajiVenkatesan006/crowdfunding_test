@@ -31,6 +31,14 @@ const theme = createTheme({
     },
 });
 
+const clearLocalStorage = () => {
+    localStorage.removeItem('thumbnails');
+    localStorage.removeItem('currentImage');
+    for (let i = 0; i < 4; i++) {
+        localStorage.removeItem(`image_${i}`);
+    }
+};
+
 const App = () => {
     const [isConsentGiven, setIsConsentGiven] = useState(null);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
@@ -40,9 +48,7 @@ const App = () => {
 
     useEffect(() => {
         // If store === 'yes', show the consent modal, otherwise load the content without showing consent
-        console.log("The storage variable");
-        console.log(store);
-        console.log(process.env.REACT_APP_STORE);
+        clearLocalStorage();
         if (store === 'yes') {
             const consent = localStorage.getItem('userConsent');
             if (consent === null) {
