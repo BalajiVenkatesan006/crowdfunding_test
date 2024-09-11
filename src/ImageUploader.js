@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Dropzone from 'react-dropzone';
 import axios from 'axios';
 import heic2any from 'heic2any';
-import { PulseLoader } from 'react-spinners';
+// Remove the unused PulseLoader import
+// import { PulseLoader } from 'react-spinners';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
-import { Box, Typography, IconButton, Button, Modal, Fade, Paper, Zoom, CircularProgress, Backdrop } from '@mui/material';
+import { Box, Typography, IconButton, Button, Modal, Fade, Paper, Zoom, CircularProgress, Backdrop } from '@mui/material'; // Make sure Backdrop is imported from @mui/material
 
 const ImageUploader = () => {
     const [currentImage, setCurrentImage] = useState(null);
@@ -429,6 +430,16 @@ const ImageUploader = () => {
                 )}
             </Box>
 
+            {/* Background loading spinner shown below thumbnails */}
+            {isBackgroundLoading && (
+                <Box sx={styles.backgroundLoadingContainer}>
+                    <CircularProgress size={30} color="inherit" />
+                    <Typography variant="caption" sx={styles.backgroundLoadingText}>
+                        Downloading images...
+                    </Typography>
+                </Box>
+            )}
+
             {isFullscreen && (
                 <Modal open={isFullscreen} onClose={handleCloseFullscreen}>
                     <Box sx={styles.fullscreenContainer}>
@@ -473,14 +484,6 @@ const ImageUploader = () => {
             >
                 Order on Kickstarter
             </Button>
-
-            {/* Better background loading animation */}
-            <Backdrop open={isBackgroundLoading} sx={styles.backdrop}>
-                <CircularProgress color="inherit" />
-                {/* <Typography variant="h6" sx={styles.backgroundLoadingText}>
-                    Loading images in the background...
-                </Typography> */}
-            </Backdrop>
         </Box>
     );
 };
@@ -666,9 +669,15 @@ const styles = {
         gap: '15px',
         alignItems: 'center',
     },
+    backgroundLoadingContainer: {
+        marginTop: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+    },
     backgroundLoadingText: {
         marginTop: '10px',
-        color: '#fff',
+        color: '#888',
         fontWeight: 'bold',
     },
 };
