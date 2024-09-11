@@ -4,7 +4,7 @@ import axios from 'axios';
 import heic2any from 'heic2any';
 import { PulseLoader } from 'react-spinners';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
-import { Box, Typography, IconButton, Button, Modal, Fade, Paper, Zoom, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Button, Modal, Fade, Paper, Zoom, CircularProgress, Backdrop } from '@mui/material';
 
 const ImageUploader = () => {
     const [currentImage, setCurrentImage] = useState(null);
@@ -165,7 +165,7 @@ const ImageUploader = () => {
         formData.append("store", localStorage.getItem('userConsent') ? localStorage.getItem('userConsent') : "false");
 
         try {
-            const response = await axios.post('http://localhost:8000/api/gamut/thumbnails_and_first_image/', formData, {
+            const response = await axios.post('api/gamut/thumbnails_and_first_image/', formData, {
                 responseType: 'json',
             });
 
@@ -208,10 +208,15 @@ const ImageUploader = () => {
     const fetchOtherImagesInBackground = async (file) => {
         const totalThumbnails = JSON.parse(localStorage.getItem('thumbnails')).length;
         setIsBackgroundLoading(true);
-        for (let i = 1; i < totalThumbnails; i++) {
-            await fetchFullImage(i, file, true); // Fetch images silently
+        try {
+            const promises = [];
+            for (let i = 1; i < totalThumbnails; i++) {
+                promises.push(fetchFullImage(i, file, true)); // Fetch images silently in parallel
+            }
+            await Promise.all(promises); // Wait for all images to load
+        } finally {
+            setIsBackgroundLoading(false);
         }
-        setIsBackgroundLoading(false);
     };
 
     const fetchFullImage = async (index, file, isBackground = false) => {
@@ -230,7 +235,7 @@ const ImageUploader = () => {
         formData.append('image', file);
 
         try {
-            const response = await axios.post(`http://localhost:8000/api/gamut/image/${index + 1}/`, formData, {
+            const response = await axios.post(`api/gamut/image/${index + 1}/`, formData, {
                 responseType: 'arraybuffer',
             });
 
@@ -246,6 +251,10 @@ const ImageUploader = () => {
 
             localStorage.setItem(`image_${index}`, imageUrl);
             localStorage.setItem('currentImage', imageUrl);
+
+            // Preload image for smoother transitions
+            const img = new Image();
+            img.src = imageUrl;
         } catch (error) {
             console.error('Error fetching full image:', error);
             setError('Failed to fetch full image.');
@@ -353,11 +362,10 @@ const ImageUploader = () => {
 
                 {error && <Typography color="error" sx={styles.error}>{error}</Typography>}
 
-                {loading && (
-                    <Box sx={styles.loadingOverlay}>
-                        <CircularProgress color="inherit" />
-                    </Box>
-                )}
+                {/* Improved loading animation on image drop */}
+                <Backdrop open={loading} sx={styles.backdrop}>
+                    <CircularProgress color="inherit" />
+                </Backdrop>
 
                 {localStorage.getItem('thumbnails') && (
                     <Fade in={!loading} timeout={1000}>
@@ -375,11 +383,6 @@ const ImageUploader = () => {
                                             document.getElementById('navRight').style.visibility = 'hidden';
                                         }}
                                     >
-                                        {loading && (
-                                            <Box sx={styles.loadingOverlay}>
-                                                <PulseLoader color="#FF8C00" size={15} margin={2} />
-                                            </Box>
-                                        )}
                                         <IconButton
                                             id="navLeft"
                                             onClick={handlePreviousImage}
@@ -471,11 +474,13 @@ const ImageUploader = () => {
                 Order on Kickstarter
             </Button>
 
-            {isBackgroundLoading && (
-                <Typography sx={styles.backgroundLoadingText}>
-                    Loading more images in the background...
-                </Typography>
-            )}
+            {/* Better background loading animation */}
+            <Backdrop open={isBackgroundLoading} sx={styles.backdrop}>
+                <CircularProgress color="inherit" />
+                {/* <Typography variant="h6" sx={styles.backgroundLoadingText}>
+                    Loading images in the background...
+                </Typography> */}
+            </Backdrop>
         </Box>
     );
 };
@@ -486,7 +491,7 @@ const styles = {
         flexDirection: 'column',
         alignItems: 'center',
         width: '100%',
-        padding: '10px 20px', // Reduced padding for tighter layout
+        padding: '10px 20px',
         overflowY: 'auto',
         boxSizing: 'border-box',
     },
@@ -498,12 +503,12 @@ const styles = {
         width: '100%',
         gap: '20px',
         flexGrow: 1,
-        paddingTop: '10px', // Reduce gap between header and the drag-and-drop zone
+        paddingTop: '10px',
     },
     dropzone: {
         width: '100%',
         maxWidth: '600px',
-        height: '80px', // Reduced height
+        height: '80px',
         borderWidth: '2px',
         borderColor: '#ccc',
         borderStyle: 'dashed',
@@ -523,7 +528,7 @@ const styles = {
     },
     error: {
         color: 'red',
-        marginTop: '10px', // Ensure error message is closer to the dropzone
+        marginTop: '10px',
         textAlign: 'center',
     },
     loadingOverlay: {
@@ -556,7 +561,7 @@ const styles = {
         borderRadius: '10px',
         overflow: 'hidden',
         position: 'relative',
-        padding: '0px', // No padding to avoid extra space around the image
+        padding: '0px',
         height: '300px',
     },
     imageWrapper: {
@@ -565,7 +570,7 @@ const styles = {
         height: '100%',
     },
     image: {
-        width: '100%', // Make the image take the full width of the container
+        width: '100%',
         height: '100%',
         objectFit: 'contain',
         cursor: 'pointer',
@@ -602,7 +607,7 @@ const styles = {
         marginTop: '10px',
         width: '100%',
         maxWidth: '800px',
-        overflowX: 'auto', // Horizontal scroll for thumbnails on mobile
+        overflowX: 'auto',
     },
     thumbnail: {
         width: '60px',
@@ -622,7 +627,7 @@ const styles = {
         borderRadius: '25px',
         boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.2)',
         marginTop: '20px',
-        marginBottom: '20px', // Add padding below the button for spacing before the footer
+        marginBottom: '20px',
     },
     fullscreenContainer: {
         position: 'fixed',
@@ -653,10 +658,18 @@ const styles = {
         gap: '10px',
         zIndex: 2,
     },
+    backdrop: {
+        zIndex: 1500,
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '15px',
+        alignItems: 'center',
+    },
     backgroundLoadingText: {
         marginTop: '10px',
-        color: '#888',
-        fontStyle: 'italic',
+        color: '#fff',
+        fontWeight: 'bold',
     },
 };
 
