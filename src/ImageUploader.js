@@ -4,7 +4,7 @@ import axios from 'axios';
 import heic2any from 'heic2any';
 import { PulseLoader } from 'react-spinners';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
-import { Box, Typography, IconButton, Button, Modal, Fade, Paper } from '@mui/material';
+import { Box, Typography, IconButton, Button, Modal, Fade, Paper, Zoom, CircularProgress } from '@mui/material';
 
 const ImageUploader = () => {
     const [currentImage, setCurrentImage] = useState(null);
@@ -15,6 +15,7 @@ const ImageUploader = () => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [file, setFile] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(1);
+    const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
 
     useEffect(() => {
         const handlePageRefresh = () => {
@@ -180,6 +181,23 @@ const ImageUploader = () => {
             // Save the thumbnails and first image in localStorage
             localStorage.setItem('thumbnails', JSON.stringify(formattedThumbnails));
             localStorage.setItem('currentImage', formattedFirstImage);
+            // Create a Blob from base64 string of the first_image
+            const byteString = atob(first_image);
+            const arrayBuffer = new ArrayBuffer(byteString.length);
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            for (let i = 0; i < byteString.length; i++) {
+                uint8Array[i] = byteString.charCodeAt(i);
+            }
+
+            const blob = new Blob([uint8Array], { type: 'image/png' });
+            const imageUrl = URL.createObjectURL(blob);
+
+            // Save image_0 in localStorage
+            localStorage.setItem('image_0', imageUrl);
+
+            // Fetch other images asynchronously in the background
+            fetchOtherImagesInBackground(file);
 
         } catch (error) {
             console.error('Error fetching images:', error);
@@ -187,16 +205,27 @@ const ImageUploader = () => {
         }
     };
 
-    const fetchFullImage = async (index, file) => {
+    const fetchOtherImagesInBackground = async (file) => {
+        const totalThumbnails = JSON.parse(localStorage.getItem('thumbnails')).length;
+        setIsBackgroundLoading(true);
+        for (let i = 1; i < totalThumbnails; i++) {
+            await fetchFullImage(i, file, true); // Fetch images silently
+        }
+        setIsBackgroundLoading(false);
+    };
+
+    const fetchFullImage = async (index, file, isBackground = false) => {
         const cachedImage = localStorage.getItem(`image_${index}`);
         if (cachedImage) {
-            setCurrentImage(cachedImage);
-            setCurrentIndex(index);
-            setZoomLevel(1);
+            if (!isBackground) {
+                setCurrentImage(cachedImage);
+                setCurrentIndex(index);
+                setZoomLevel(1);
+            }
             return;
         }
 
-        setLoading(true);
+        if (!isBackground) setLoading(true);
         const formData = new FormData();
         formData.append('image', file);
 
@@ -207,23 +236,27 @@ const ImageUploader = () => {
 
             const blob = new Blob([response.data], { type: 'image/png' });
             const imageUrl = URL.createObjectURL(blob);
-            setCurrentImage(imageUrl);
-            setCurrentIndex(index);
-            setZoomLevel(1); // Reset zoom level on image change
-            setLoading(false);
+
+            if (!isBackground) {
+                setCurrentImage(imageUrl);
+                setCurrentIndex(index);
+                setZoomLevel(1); // Reset zoom level on image change
+                setLoading(false);
+            }
 
             localStorage.setItem(`image_${index}`, imageUrl);
             localStorage.setItem('currentImage', imageUrl);
         } catch (error) {
             console.error('Error fetching full image:', error);
             setError('Failed to fetch full image.');
-            setLoading(false);
+            if (!isBackground) setLoading(false);
         }
     };
 
     const onDrop = async (acceptedFiles) => {
         clearLocalStorage(); // Clear the local storage before processing a new image
         setError(null);
+        setLoading(true); // Show loading spinner when new image is dropped
         let file = acceptedFiles[0];
         try {
             if (file.type === 'image/heic' || file.name.endsWith('.HEIC')) {
@@ -245,11 +278,14 @@ const ImageUploader = () => {
             }
             const resizedFile = await validateAndResizeImage(file);
             setFile(resizedFile);
+            setCurrentIndex(0); // Reset currentIndex when a new file is dropped
             await fetchInitialImages(resizedFile);
             setError(null);
             setIsButtonDisabled(false);
+            setLoading(false); // Hide loading spinner when image is processed
         } catch (error) {
             setError(error.message);
+            setLoading(false); // Hide loading spinner on error
             console.error(error);
         }
     };
@@ -317,42 +353,50 @@ const ImageUploader = () => {
 
                 {error && <Typography color="error" sx={styles.error}>{error}</Typography>}
 
+                {loading && (
+                    <Box sx={styles.loadingOverlay}>
+                        <CircularProgress color="inherit" />
+                    </Box>
+                )}
+
                 {localStorage.getItem('thumbnails') && (
                     <Fade in={!loading} timeout={1000}>
                         <Box sx={styles.imageAndThumbnailsContainer}>
                             <Box sx={styles.imageContainer}>
-                                <Box
-                                    sx={styles.imageWrapper}
-                                    onMouseEnter={() => {
-                                        document.getElementById('navLeft').style.visibility = 'visible';
-                                        document.getElementById('navRight').style.visibility = 'visible';
-                                    }}
-                                    onMouseLeave={() => {
-                                        document.getElementById('navLeft').style.visibility = 'hidden';
-                                        document.getElementById('navRight').style.visibility = 'hidden';
-                                    }}
-                                >
-                                    {loading && (
-                                        <Box sx={styles.loadingOverlay}>
-                                            <PulseLoader color="#FF8C00" size={15} margin={2} />
-                                        </Box>
-                                    )}
-                                    <IconButton
-                                        id="navLeft"
-                                        onClick={handlePreviousImage}
-                                        sx={{ ...styles.navigationIcon, left: '10px', visibility: 'hidden' }}
+                                <Zoom in={!loading}>
+                                    <Box
+                                        sx={styles.imageWrapper}
+                                        onMouseEnter={() => {
+                                            document.getElementById('navLeft').style.visibility = 'visible';
+                                            document.getElementById('navRight').style.visibility = 'visible';
+                                        }}
+                                        onMouseLeave={() => {
+                                            document.getElementById('navLeft').style.visibility = 'hidden';
+                                            document.getElementById('navRight').style.visibility = 'hidden';
+                                        }}
                                     >
-                                        <FaChevronLeft />
-                                    </IconButton>
-                                    <img src={currentImage} alt="Processed" style={styles.image} onClick={handleImageClick} />
-                                    <IconButton
-                                        id="navRight"
-                                        onClick={handleNextImage}
-                                        sx={{ ...styles.navigationIcon, right: '10px', visibility: 'hidden' }}
-                                    >
-                                        <FaChevronRight />
-                                    </IconButton>
-                                </Box>
+                                        {loading && (
+                                            <Box sx={styles.loadingOverlay}>
+                                                <PulseLoader color="#FF8C00" size={15} margin={2} />
+                                            </Box>
+                                        )}
+                                        <IconButton
+                                            id="navLeft"
+                                            onClick={handlePreviousImage}
+                                            sx={{ ...styles.navigationIcon, left: '10px', visibility: 'hidden' }}
+                                        >
+                                            <FaChevronLeft />
+                                        </IconButton>
+                                        <img src={currentImage} alt="Processed" style={styles.image} onClick={handleImageClick} />
+                                        <IconButton
+                                            id="navRight"
+                                            onClick={handleNextImage}
+                                            sx={{ ...styles.navigationIcon, right: '10px', visibility: 'hidden' }}
+                                        >
+                                            <FaChevronRight />
+                                        </IconButton>
+                                    </Box>
+                                </Zoom>
                             </Box>
 
                             <Box sx={styles.captionContainer}>
@@ -426,6 +470,12 @@ const ImageUploader = () => {
             >
                 Order on Kickstarter
             </Button>
+
+            {isBackgroundLoading && (
+                <Typography sx={styles.backgroundLoadingText}>
+                    Loading more images in the background...
+                </Typography>
+            )}
         </Box>
     );
 };
@@ -476,6 +526,18 @@ const styles = {
         marginTop: '10px', // Ensure error message is closer to the dropzone
         textAlign: 'center',
     },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
+    },
     imageAndThumbnailsContainer: {
         display: 'flex',
         flexDirection: 'column',
@@ -516,18 +578,6 @@ const styles = {
         fontSize: '2em',
         color: '#FF8C00',
         zIndex: 1,
-    },
-    loadingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 2,
     },
     captionContainer: {
         width: '100%',
@@ -602,6 +652,11 @@ const styles = {
         alignItems: 'flex-end',
         gap: '10px',
         zIndex: 2,
+    },
+    backgroundLoadingText: {
+        marginTop: '10px',
+        color: '#888',
+        fontStyle: 'italic',
     },
 };
 
