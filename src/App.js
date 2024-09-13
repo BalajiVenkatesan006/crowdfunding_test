@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
 import oraclaseLogo from './oraclase_logo_black_bg.png';
 import { FaInstagram, FaLinkedin, FaYoutube, FaTiktok } from 'react-icons/fa';
-import { Box, Typography, IconButton, Modal, Button, Container, Link } from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, Container } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';  // Import from @mui/material
+import useMediaQuery from '@mui/material/useMediaQuery';  
 
+// Define the custom theme based on Oraclase's website style
 const theme = createTheme({
     palette: {
         primary: {
@@ -17,9 +18,22 @@ const theme = createTheme({
         background: {
             default: '#f7f7f7',
         },
+        footerBackground: {
+            main: '#212529',  // Color from Oraclase footer
+        },
+        text: {
+            primary: '#ffffff',  // Set to white for footer and other text areas
+        },
     },
     typography: {
-        fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+        fontFamily: '"Inter", sans-serif',  // Use "Inter" as per Oraclase's site
+        h6: {
+            fontSize: '1.1rem',  // Adjust heading font sizes
+            fontWeight: 'bold',
+        },
+        body1: {
+            fontSize: '0.9rem',  // Adjust body font sizes as per Oraclase site
+        },
     },
     components: {
         MuiButton: {
@@ -44,21 +58,19 @@ const App = () => {
     const [isConsentGiven, setIsConsentGiven] = useState(null);
     const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
 
-    // Fetch the store variable from environment variables
     const store = process.env.REACT_APP_STORE;
 
     useEffect(() => {
-        // If store === 'yes', show the consent modal, otherwise load the content without showing consent
         clearLocalStorage();
         if (store === 'yes') {
             const consent = localStorage.getItem('userConsent');
             if (consent === null) {
                 setIsConsentModalOpen(true);
             } else {
-                setIsConsentGiven(true); // Consent already given
+                setIsConsentGiven(true);
             }
         } else {
-            setIsConsentGiven(true); // No consent required if store === 'no'
+            setIsConsentGiven(true);
         }
     }, [store]);
 
@@ -73,20 +85,18 @@ const App = () => {
         setIsConsentModalOpen(false);
     };
 
-    // Define a media query for responsiveness
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     return (
         <ThemeProvider theme={theme}>
             <Box sx={styles.appContainer}>
-                {/* Modal for consent if needed */}
                 {store === 'yes' && isConsentModalOpen && (
                     <Modal open={isConsentModalOpen}>
                         <Box
                             sx={{
                                 ...styles.modalContent,
-                                width: isMobile ? '90%' : '500px', // Adjust modal width based on screen size
-                                padding: isMobile ? '20px' : '40px', // Adjust padding based on screen size
+                                width: isMobile ? '90%' : '500px',
+                                padding: isMobile ? '20px' : '40px',
                             }}
                         >
                             <Typography variant="h6" component="h2">
@@ -122,23 +132,22 @@ const App = () => {
                     </Modal>
                 )}
 
-                {/* Main Content */}
                 {localStorage.getItem('userConsent') != null && (
                     <>
                         <Box sx={styles.header}>
                             <img src={oraclaseLogo} alt="Oraclase Logo" style={styles.logo} />
                             <Box sx={styles.socialIcons}>
                                 <IconButton component="a" href="https://www.instagram.com/oraclase.ai/" target="_blank">
-                                    <FaInstagram size={24} style={{ color: 'white' }} />
+                                    <FaInstagram size={20} style={{ color: 'white' }} />
                                 </IconButton>
                                 <IconButton component="a" href="https://www.linkedin.com/company/oraclase/" target="_blank">
-                                    <FaLinkedin size={24} style={{ color: 'white' }} />
+                                    <FaLinkedin size={20} style={{ color: 'white' }} />
                                 </IconButton>
                                 <IconButton component="a" href="https://www.youtube.com/@Oraclase" target="_blank">
-                                    <FaYoutube size={24} style={{ color: 'white' }} />
+                                    <FaYoutube size={20} style={{ color: 'white' }} />
                                 </IconButton>
                                 <IconButton component="a" href="https://www.tiktok.com/@oraclase.ai" target="_blank">
-                                    <FaTiktok size={24} style={{ color: 'white' }} />
+                                    <FaTiktok size={20} style={{ color: 'white' }} />
                                 </IconButton>
                             </Box>
                         </Box>
@@ -146,10 +155,12 @@ const App = () => {
                             <ImageUploader />
                         </Container>
                         <Box sx={styles.footer}>
-                            <Typography>
+                            <Typography sx={styles.footerText}>
                                 Oraclase | Saarland Informatics Campus | Campus E1 7 (MMCI) | 66123 Saarbrücken, Germany
                             </Typography>
-                            <Typography>+49 (0) 681 302 707 61 | info@oraclase.com</Typography>
+                            <Typography sx={styles.footerText}>
+                                +49 (0) 681 302 707 61 | info@oraclase.com
+                            </Typography>
                         </Box>
                     </>
                 )}
@@ -168,11 +179,11 @@ const styles = {
     header: {
         backgroundColor: theme.palette.primary.main,
         color: 'white',
-        padding: '10px 20px',
+        padding: '5px 20px',  // Reduced padding to match smaller header
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        height: '8vh',
+        height: '6vh',  // Reduced header height (50% of original)
         position: 'fixed',
         top: 0,
         left: 0,
@@ -180,11 +191,11 @@ const styles = {
         zIndex: 1000,
     },
     logo: {
-        height: '100%',
+        height: '80%',  // Adjusted logo height for smaller header
     },
     socialIcons: {
         display: 'flex',
-        gap: '20px',
+        gap: '10px',  // Reduced gap between icons for smaller header
     },
     mainContent: {
         flex: '1',
@@ -192,23 +203,27 @@ const styles = {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingTop: '5vh',
+        paddingTop: '6vh',  // Adjusted for smaller header
         paddingBottom: '18vh',
-        marginTop: '5vh',
+        marginTop: '4vh',  // Adjusted to account for header
         backgroundColor: theme.palette.background.default,
     },
     footer: {
-        backgroundColor: theme.palette.primary.dark,
-        color: 'white',
+        backgroundColor: theme.palette.footerBackground.main,  // Set to footer color from Oraclase
+        color: theme.palette.text.primary,
         padding: '20px',
         textAlign: 'center',
-        height: '10vh',
+        height: '8vh',
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 1000,
-        // Ensure that there's enough space below on smaller screens
+    },
+    footerText: {
+        fontFamily: theme.typography.fontFamily,
+        fontSize: '0.9rem',  // Adjusted font size to match Oraclase's style
+        color: theme.palette.text.primary,
     },
     modalContent: {
         position: 'absolute',
