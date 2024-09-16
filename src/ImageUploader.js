@@ -4,19 +4,21 @@ import axios from 'axios';
 import heic2any from 'heic2any';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
 import { Box, Typography, IconButton, Button, Modal, Fade, Zoom, CircularProgress, Backdrop } from '@mui/material';
+import { useTheme } from '@mui/material/styles';  // Import theme
 
 const ImageUploader = () => {
     const [currentImage, setCurrentImage] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);  // Main loading state
-    const [thumbnailLoading, setThumbnailLoading] = useState(false);  // Loading for navigation
     const [isButtonDisabled, setIsButtonDisabled] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [file, setFile] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(1);
     const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
     const [loadedImages, setLoadedImages] = useState({});  // Tracks which images are loaded
+
+    const theme = useTheme();  // Get theme from Material-UI
 
     useEffect(() => {
         const handlePageRefresh = () => {
@@ -194,7 +196,7 @@ const ImageUploader = () => {
 
             localStorage.setItem('image_0', imageUrl);
 
-            setLoadedImages(prev => ({ ...prev, [0]: true }));
+            setLoadedImages(prev => ({ ...prev, 0: true }));  // Fixed unnecessary computed property
 
             fetchOtherImagesInBackground(file);
 
@@ -230,7 +232,7 @@ const ImageUploader = () => {
             return;
         }
 
-        if (!isBackground) setThumbnailLoading(true);  // Loading only for thumbnail navigation
+        if (!isBackground) setLoading(true);  // Loading only for navigation
         const formData = new FormData();
         formData.append('image', file);
 
@@ -246,7 +248,7 @@ const ImageUploader = () => {
                 setCurrentImage(imageUrl);
                 setCurrentIndex(index);
                 setZoomLevel(1); 
-                setThumbnailLoading(false);
+                setLoading(false);
             }
 
             localStorage.setItem(`image_${index}`, imageUrl);
@@ -254,12 +256,10 @@ const ImageUploader = () => {
 
             setLoadedImages(prev => ({ ...prev, [index]: true }));
 
-            const img = new Image();
-            img.src = imageUrl;
         } catch (error) {
             console.error('Error fetching full image:', error);
             setError('Failed to fetch full image.');
-            if (!isBackground) setThumbnailLoading(false);
+            if (!isBackground) setLoading(false);
         }
     };
 
@@ -279,14 +279,11 @@ const ImageUploader = () => {
                         type: 'image/jpeg',
                     });
                 } catch (conversionError) {
-                    setIsButtonDisabled(true);
                     throw new Error("Failed to convert HEIC file. The file may be invalid or not a genuine HEIC image.");
                 }
             }
             const validationError = await validateFile(file);
             if (validationError) {
-                clearLocalStorage();
-                setIsButtonDisabled(true);
                 throw new Error(validationError);
             }
             const resizedFile = await validateAndResizeImage(file);
@@ -306,23 +303,21 @@ const ImageUploader = () => {
     const handleNextImage = async () => {
         const thumbnails = JSON.parse(localStorage.getItem('thumbnails'));
         const newIndex = (currentIndex + 1) % thumbnails.length;
-        if (!loadedImages[newIndex]) {
-            setThumbnailLoading(true);  // Show loading spinner if the image is not loaded
-        }
+        if (!loadedImages[newIndex]) return; // Disable navigation if not loaded
+        setLoading(true);
         await fetchFullImage(newIndex, file);  // Ensure we wait for the image to load
         setCurrentIndex(newIndex);  // Update the currentIndex only after the image has loaded
-        setThumbnailLoading(false); // Turn off the spinner after image is loaded
+        setLoading(false); // Turn off the spinner after image is loaded
     };
     
     const handlePreviousImage = async () => {
         const thumbnails = JSON.parse(localStorage.getItem('thumbnails'));
         const newIndex = (currentIndex - 1 + thumbnails.length) % thumbnails.length;
-        if (!loadedImages[newIndex]) {
-            setThumbnailLoading(true);  // Show loading spinner if the image is not loaded
-        }
+        if (!loadedImages[newIndex]) return; // Disable navigation if not loaded
+        setLoading(true);
         await fetchFullImage(newIndex, file);  // Ensure we wait for the image to load
         setCurrentIndex(newIndex);  // Update the currentIndex only after the image has loaded
-        setThumbnailLoading(false); // Turn off the spinner after image is loaded
+        setLoading(false); // Turn off the spinner after image is loaded
     };
 
     const handleImageClick = () => {
@@ -405,19 +400,16 @@ const ImageUploader = () => {
                                             id="navLeft"
                                             onClick={handlePreviousImage}
                                             sx={{ ...styles.navigationIcon, left: '10px', visibility: 'hidden' }}
+                                            disabled={!loadedImages[(currentIndex - 1 + JSON.parse(localStorage.getItem('thumbnails')).length) % JSON.parse(localStorage.getItem('thumbnails')).length]}
                                         >
                                             <FaChevronLeft />
                                         </IconButton>
                                         <img src={currentImage} alt="Processed" style={styles.image} onClick={handleImageClick} />
-                                        {thumbnailLoading && (
-                                            <Backdrop open={thumbnailLoading} sx={styles.thumbnailBackdrop}>
-                                                <CircularProgress color="inherit" />
-                                            </Backdrop>
-                                        )}
                                         <IconButton
                                             id="navRight"
                                             onClick={handleNextImage}
                                             sx={{ ...styles.navigationIcon, right: '10px', visibility: 'hidden' }}
+                                            disabled={!loadedImages[(currentIndex + 1) % JSON.parse(localStorage.getItem('thumbnails')).length]}
                                         >
                                             <FaChevronRight />
                                         </IconButton>
@@ -426,11 +418,9 @@ const ImageUploader = () => {
                             </Box>
 
                             <Box sx={styles.captionContainer}>
-                                <div style={styles.captionBox}>
-                                    <Typography variant="subtitle1" sx={styles.caption}>
-                                        {getCaption()}
-                                    </Typography>
-                                </div>
+                                <Typography variant="subtitle1" sx={styles.caption}>
+                                    {getCaption()}
+                                </Typography>
                             </Box>
 
                             <Box sx={styles.thumbnailContainer}>
@@ -441,12 +431,11 @@ const ImageUploader = () => {
                                             alt={`Thumbnail ${index + 1}`}
                                             style={{
                                                 ...styles.thumbnail,
-                                                borderColor: currentIndex === index ? '#007bff' : '#ccc',
+                                                borderColor: currentIndex === index ? theme.palette.primary.main : '#ccc',
                                             }}
                                             onClick={() => loadedImages[index] && fetchFullImage(index, file)}
                                             disabled={!loadedImages[index]}
                                         />
-                                        {!loadedImages[index] && <CircularProgress size={24} sx={styles.thumbnailLoader} />}
                                     </Box>
                                 ))}
                             </Box>
@@ -608,23 +597,21 @@ const styles = {
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: '2em',
-        color: '#FF8C00',
+        color: '#373a71',  // Header color
         zIndex: 1,
     },
     captionContainer: {
         width: '100%',
         padding: '10px',
-    },
-    captionBox: {
-        padding: '10px',
-        backgroundColor: '#f0f0f0',
-        borderRadius: '10px',
         textAlign: 'center',
-        boxShadow: '0px 2px 5px rgba(0, 0, 0, 0.1)', 
     },
     caption: {
-        color: '#007bff',
-        fontWeight: 'bold',
+        color: '#373a71',  // Header background color
+        fontFamily: '"Poppins", sans-serif',  // Apply Poppins font
+        fontSize: '16px',
+        letterSpacing: 'normal',
+        whiteSpace: 'pre-wrap',
+        lineHeight: '28.8px',
     },
     thumbnailContainer: {
         display: 'flex',
@@ -646,13 +633,6 @@ const styles = {
         cursor: 'pointer',
         borderRadius: '5px',
         border: '2px solid #ccc',
-    },
-    thumbnailLoader: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1,
     },
     kickstarterButton: {
         width: '100%',
@@ -702,16 +682,6 @@ const styles = {
         flexDirection: 'column',
         gap: '15px',
         alignItems: 'center',
-    },
-    thumbnailBackdrop: {
-        zIndex: 1000,  // Thumbnail loading spinner z-index
-        color: '#fff',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',  // Light overlay over image during loading
     },
     backgroundLoadingContainer: {
         marginTop: '20px',

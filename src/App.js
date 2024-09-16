@@ -10,7 +10,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 const theme = createTheme({
     palette: {
         primary: {
-            main: '#0d47a1',
+            main: '#373a71',
         },
         secondary: {
             main: '#d32f2f',
@@ -19,20 +19,20 @@ const theme = createTheme({
             default: '#f7f7f7',
         },
         footerBackground: {
-            main: '#212529',  // Color from Oraclase footer
+            main: '#515264',  // Color from Oraclase footer
         },
         text: {
             primary: '#ffffff',  // Set to white for footer and other text areas
         },
     },
     typography: {
-        fontFamily: '"Inter", sans-serif',  // Use "Inter" as per Oraclase's site
+        fontFamily: '"Poppins", sans-serif',  // Changed to Poppins
         h6: {
             fontSize: '1.1rem',  // Adjust heading font sizes
             fontWeight: 'bold',
         },
         body1: {
-            fontSize: '0.9rem',  // Adjust body font sizes as per Oraclase site
+            fontSize: '16px',  // Changed font size to 16px
         },
     },
     components: {
@@ -222,8 +222,12 @@ const styles = {
     },
     footerText: {
         fontFamily: theme.typography.fontFamily,
-        fontSize: '0.9rem',  // Adjusted font size to match Oraclase's style
+        fontSize: '16px',  // Changed font size to 16px
         color: theme.palette.text.primary,
+        letterSpacing: 'normal',  // Set letter spacing to normal
+        textAlign: 'center',  // Align text to center
+        whiteSpace: 'pre-wrap',  // Set white space to pre-wrap
+        lineHeight: '28.8px',  // Set line height to 28.8px
     },
     modalContent: {
         position: 'absolute',
@@ -239,9 +243,14 @@ const styles = {
         width: '100%',
     },
     consentText: {
-        marginTop: '20px',
+        fontFamily: theme.typography.fontFamily,  // Set to Poppins
+        fontSize: '16px',  // Set font size to 16px
+        color: 'black',  // Changed to black for consent text
+        letterSpacing: 'normal',  // Set letter spacing to normal
         textAlign: 'justify',
-        lineHeight: '1.5',
+        whiteSpace: 'pre-wrap',
+        lineHeight: '28.8px',  // Set line height to 28.8px
+        marginTop: '20px',
     },
     consentButtonGroup: {
         marginTop: '30px',
