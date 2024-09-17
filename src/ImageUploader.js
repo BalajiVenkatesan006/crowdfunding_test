@@ -485,7 +485,7 @@ const ImageUploader = () => {
                 </Modal>
             )}
 
-            <Button
+            {/* <Button
                 variant="contained"
                 sx={{
                     ...styles.kickstarterButton,
@@ -496,7 +496,7 @@ const ImageUploader = () => {
                 disabled={isButtonDisabled}
             >
                 Order on Kickstarter
-            </Button>
+            </Button> */}
         </Box>
     );
 };
