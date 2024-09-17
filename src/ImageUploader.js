@@ -232,7 +232,7 @@ const ImageUploader = () => {
             return;
         }
 
-        if (!isBackground) setLoading(true);  // Loading only for navigation
+        // if (!isBackground) setLoading(true);  // Loading only for navigation
         const formData = new FormData();
         formData.append('image', file);
 
@@ -304,7 +304,7 @@ const ImageUploader = () => {
         const thumbnails = JSON.parse(localStorage.getItem('thumbnails'));
         const newIndex = (currentIndex + 1) % thumbnails.length;
         if (!loadedImages[newIndex]) return; // Disable navigation if not loaded
-        setLoading(true);
+        // setLoading(true);
         await fetchFullImage(newIndex, file);  // Ensure we wait for the image to load
         setCurrentIndex(newIndex);  // Update the currentIndex only after the image has loaded
         setLoading(false); // Turn off the spinner after image is loaded
@@ -314,7 +314,7 @@ const ImageUploader = () => {
         const thumbnails = JSON.parse(localStorage.getItem('thumbnails'));
         const newIndex = (currentIndex - 1 + thumbnails.length) % thumbnails.length;
         if (!loadedImages[newIndex]) return; // Disable navigation if not loaded
-        setLoading(true);
+        // setLoading(true);
         await fetchFullImage(newIndex, file);  // Ensure we wait for the image to load
         setCurrentIndex(newIndex);  // Update the currentIndex only after the image has loaded
         setLoading(false); // Turn off the spinner after image is loaded
